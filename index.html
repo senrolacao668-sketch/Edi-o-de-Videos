@@ -370,9 +370,11 @@
 
 </main>
 
-<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
-<script>
-(function(){
+<script type="module">
+import { FFmpeg } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/esm/index.js';
+import { fetchFile, toBlobURL } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist/esm/index.js';
+
+(async function(){
   "use strict";
 
   const $ = (sel, ctx) => (ctx||document).querySelector(sel);
@@ -403,20 +405,16 @@
 
   async function initEngine(){
     if (engineReady) return;
-    if (typeof FFmpeg === 'undefined'){
-      setEngineState('', 'Falha ao carregar a biblioteca. Verifique sua conexão e recarregue a página.');
-      return;
-    }
     loadEngineBtn.disabled = true;
     setEngineState('busy', 'Baixando motor de edição...');
     try{
-      const { createFFmpeg } = FFmpeg;
-      ffmpeg = createFFmpeg({
-        log: true,
-        corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
-        logger: ({message}) => log(message)
+      ffmpeg = new FFmpeg();
+      ffmpeg.on('log', ({message}) => log(message));
+      const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm';
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
       });
-      await ffmpeg.load();
       engineReady = true;
       setEngineState('ok', 'Motor pronto para editar');
       loadEngineBtn.textContent = 'Motor carregado';
@@ -531,8 +529,8 @@
     wrapEl.classList.add('show');
     barEl.style.width = '0%';
     labelEl.textContent = 'Processando...';
-    ffmpeg.setProgress(({ ratio }) => {
-      const pct = Math.min(100, Math.max(0, Math.round((ratio||0)*100)));
+    ffmpeg.on('progress', ({ progress }) => {
+      const pct = Math.min(100, Math.max(0, Math.round((progress||0)*100)));
       barEl.style.width = pct + '%';
       labelEl.textContent = pct + '%';
     });
@@ -542,8 +540,6 @@
     labelEl.textContent = ok ? 'Concluído' : 'Falhou — veja o registro técnico';
     setTimeout(() => wrapEl.classList.remove('show'), 1200);
   }
-
-  const { fetchFile } = (typeof FFmpeg !== 'undefined') ? FFmpeg : { fetchFile: null };
 
   // ---------- CORTAR ----------
   $('#doTrimBtn').addEventListener('click', async () => {
@@ -561,17 +557,17 @@
       const barWrap = $('#trimProgressWrap'), bar = $('#trimProgressBar'), lbl = $('#trimProgressLabel');
       wireProgress(bar, lbl, barWrap);
 
-      ffmpeg.FS('writeFile', 'in_trim.mp4', await fetchFile(currentFile));
+      await ffmpeg.writeFile('in_trim.mp4', await fetchFile(currentFile));
       const dur = end - start;
       const outName = 'corte.mp4';
       const args = mode === 'copy'
         ? ['-ss', String(start), '-i', 'in_trim.mp4', '-t', String(dur), '-c', 'copy', outName]
         : ['-i', 'in_trim.mp4', '-ss', String(start), '-t', String(dur), '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac', outName];
-      await ffmpeg.run(...args);
-      const data = ffmpeg.FS('readFile', outName);
+      await ffmpeg.exec(args);
+      const data = await ffmpeg.readFile(outName);
       const blob = new Blob([data.buffer], { type: 'video/mp4' });
       makeResultCard($('#trimResults'), blob, `corte_${fmtTime(start).replace(':','m')}-${fmtTime(end).replace(':','m')}.mp4`, `Trecho de ${fmtTime(start)} a ${fmtTime(end)}`);
-      ffmpeg.FS('unlink', 'in_trim.mp4'); ffmpeg.FS('unlink', outName);
+      await ffmpeg.deleteFile('in_trim.mp4'); await ffmpeg.deleteFile(outName);
       finishProgress(bar, lbl, barWrap, true);
       btn.disabled = false;
     }catch(err){
@@ -597,27 +593,27 @@
       const barWrap = $('#splitProgressWrap'), bar = $('#splitProgressBar'), lbl = $('#splitProgressLabel');
       barWrap.classList.add('show');
 
-      ffmpeg.FS('writeFile', 'in_split.mp4', await fetchFile(currentFile));
+      await ffmpeg.writeFile('in_split.mp4', await fetchFile(currentFile));
 
       for (let i=0; i<count; i++){
         const start = i*partSec;
         const dur = Math.min(partSec, videoDuration - start);
         lbl.textContent = `Parte ${i+1} de ${count}...`;
-        ffmpeg.setProgress(({ratio}) => {
-          const overall = ((i + (ratio||0)) / count) * 100;
+        ffmpeg.on('progress', ({progress}) => {
+          const overall = ((i + (progress||0)) / count) * 100;
           bar.style.width = Math.min(100, Math.round(overall)) + '%';
         });
         const outName = `parte_${i+1}.mp4`;
         const args = mode === 'copy'
           ? ['-ss', String(start), '-i', 'in_split.mp4', '-t', String(dur), '-c', 'copy', outName]
           : ['-i', 'in_split.mp4', '-ss', String(start), '-t', String(dur), '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac', outName];
-        await ffmpeg.run(...args);
-        const data = ffmpeg.FS('readFile', outName);
+        await ffmpeg.exec(args);
+        const data = await ffmpeg.readFile(outName);
         const blob = new Blob([data.buffer], { type: 'video/mp4' });
         makeResultCard(container, blob, outName, `Parte ${i+1} (${fmtTime(start)} – ${fmtTime(start+dur)})`);
-        ffmpeg.FS('unlink', outName);
+        await ffmpeg.deleteFile(outName);
       }
-      ffmpeg.FS('unlink', 'in_split.mp4');
+      await ffmpeg.deleteFile('in_split.mp4');
       lbl.textContent = 'Concluído';
       bar.style.width = '100%';
       setTimeout(() => barWrap.classList.remove('show'), 1200);
@@ -635,7 +631,7 @@
     if (fontLoaded) return;
     log('Baixando fonte para legendas...');
     const fontData = await fetchFile('https://raw.githubusercontent.com/google/fonts/main/apache/roboto/Roboto-Regular.ttf');
-    ffmpeg.FS('writeFile', 'font.ttf', fontData);
+    await ffmpeg.writeFile('font.ttf', fontData);
     fontLoaded = true;
   }
 
@@ -657,7 +653,7 @@
 
       await ensureFont();
 
-      ffmpeg.FS('writeFile', 'in_cap.mp4', await fetchFile(currentFile));
+      await ffmpeg.writeFile('in_cap.mp4', await fetchFile(currentFile));
 
       let yExpr = 'h-th-40';
       if (pos === 'top') yExpr = '40';
@@ -668,11 +664,11 @@
 
       lbl.textContent = 'Renderizando legenda (pode demorar)...';
       const outName = 'legendado.mp4';
-      await ffmpeg.run('-i', 'in_cap.mp4', '-vf', filter, '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'copy', outName);
-      const data = ffmpeg.FS('readFile', outName);
+      await ffmpeg.exec(['-i', 'in_cap.mp4', '-vf', filter, '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'copy', outName]);
+      const data = await ffmpeg.readFile(outName);
       const blob = new Blob([data.buffer], { type: 'video/mp4' });
       makeResultCard($('#capResults'), blob, 'legendado.mp4', `Legenda de ${fmtTime(start)} a ${fmtTime(end)}`);
-      ffmpeg.FS('unlink', 'in_cap.mp4'); ffmpeg.FS('unlink', outName);
+      await ffmpeg.deleteFile('in_cap.mp4'); await ffmpeg.deleteFile(outName);
       finishProgress(bar, lbl, barWrap, true);
       btn.disabled = false;
     }catch(err){
