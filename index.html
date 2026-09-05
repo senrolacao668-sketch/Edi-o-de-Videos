@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Bancada de Corte</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#1a1816;
+    --panel:#221f1b;
+    --panel-2:#2a2621;
+    --line:#3a352e;
+    --text:#ede8de;
+    --muted:#a89f8f;
+    --accent:#e8a33d;
+    --accent-ink:#1a1410;
+    --teal:#4a9494;
+    --danger:#c1554b;
+    --radius-sm:4px;
+    --radius-lg:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',system-ui,sans-serif;
+    font-size:15px;
+    line-height:1.45;
+    padding-bottom:60px;
+    -webkit-tap-highlight-color:transparent;
+  }
+  h1,h2,h3,.label{
+    font-family:'Barlow Condensed',sans-serif;
+    font-weight:600;
+    letter-spacing:0.01em;
+  }
+  header{
+    padding:22px 18px 14px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#221f1b,#1a1816);
+  }
+  header h1{
+    margin:0;
+    font-size:28px;
+    font-weight:700;
+    color:var(--text);
+  }
+  header .sub{
+    color:var(--muted);
+    font-size:13.5px;
+    margin-top:4px;
+  }
+  main{padding:16px;max-width:520px;margin:0 auto;}
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius-lg);
+    padding:16px;
+    margin-bottom:16px;
+  }
+
+  .dropzone{
+    border:1.5px dashed var(--line);
+    border-radius:var(--radius-lg);
+    padding:36px 16px;
+    text-align:center;
+    color:var(--muted);
+    cursor:pointer;
+  }
+  .dropzone:active{border-color:var(--accent);}
+  .dropzone strong{color:var(--text);display:block;font-size:17px;margin-bottom:4px;}
+  input[type=file]{display:none;}
+
+  video{width:100%;border-radius:var(--radius-sm);background:#000;display:block;}
+
+  .meta-row{
+    display:flex;justify-content:space-between;align-items:baseline;
+    margin-top:10px;color:var(--muted);font-size:13px;
+  }
+  .meta-row span.val{color:var(--text);font-weight:600;}
+
+  .engine-status{
+    display:flex;align-items:center;gap:10px;
+    font-size:13.5px;color:var(--muted);
+  }
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--danger);flex:none;}
+  .dot.ok{background:#6faa5e;}
+  .dot.busy{background:var(--accent);animation:pulse 1s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  button{
+    font-family:'Barlow Condensed',sans-serif;
+    font-weight:600;
+    font-size:16px;
+    letter-spacing:0.01em;
+    border:none;
+    border-radius:999px;
+    padding:12px 20px;
+    cursor:pointer;
+    background:var(--accent);
+    color:var(--accent-ink);
+    width:100%;
+  }
+  button.secondary{
+    background:transparent;
+    color:var(--text);
+    border:1.5px solid var(--line);
+  }
+  button.small{
+    width:auto;
+    padding:7px 14px;
+    font-size:14px;
+  }
+  button:disabled{opacity:.4;cursor:not-allowed;}
+
+  .tabs{
+    display:flex;
+    gap:6px;
+    background:var(--panel-2);
+    padding:4px;
+    border-radius:999px;
+    margin-bottom:16px;
+  }
+  .tab{
+    flex:1;
+    text-align:center;
+    padding:9px 6px;
+    border-radius:999px;
+    font-family:'Barlow Condensed',sans-serif;
+    font-weight:600;
+    font-size:15px;
+    color:var(--muted);
+    cursor:pointer;
+  }
+  .tab.active{background:var(--accent);color:var(--accent-ink);}
+
+  .panel-view{display:none;}
+  .panel-view.active{display:block;}
+
+  label.field-label{
+    display:block;
+    font-size:12.5px;
+    color:var(--muted);
+    margin-bottom:5px;
+    font-family:'Inter',sans-serif;
+    font-weight:500;
+  }
+  .field{margin-bottom:14px;}
+  .row2{display:flex;gap:10px;}
+  .row2 > div{flex:1;}
+
+  input[type=text],input[type=number],select{
+    width:100%;
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    color:var(--text);
+    padding:10px 12px;
+    border-radius:var(--radius-sm);
+    font-size:15px;
+    font-family:'Inter',sans-serif;
+  }
+  .use-now{
+    margin-top:6px;
+    font-size:12.5px;
+    color:var(--teal);
+    text-decoration:underline;
+    cursor:pointer;
+    display:inline-block;
+  }
+
+  input[type=range]{width:100%;accent-color:var(--accent);}
+
+  .hint{font-size:12.5px;color:var(--muted);margin-top:8px;}
+
+  .progress-wrap{
+    height:8px;background:var(--panel-2);border-radius:4px;overflow:hidden;margin:12px 0 6px;
+    display:none;
+  }
+  .progress-wrap.show{display:block;}
+  .progress-bar{height:100%;width:0%;background:var(--accent);transition:width .15s;}
+  .progress-label{font-size:12.5px;color:var(--muted);}
+
+  .results{margin-top:6px;}
+  .result-card{
+    background:var(--panel-2);
+    border:1px solid var(--line);
+    border-radius:var(--radius-sm);
+    padding:12px;
+    margin-bottom:10px;
+  }
+  .result-card .r-title{font-weight:600;font-size:14.5px;margin-bottom:8px;}
+  .result-card video{max-height:220px;}
+  .result-card a.dl{
+    display:inline-block;margin-top:8px;
+    background:var(--accent);color:var(--accent-ink);
+    padding:8px 16px;border-radius:999px;
+    text-decoration:none;font-family:'Barlow Condensed',sans-serif;font-weight:600;
+  }
+
+  details.log{margin-top:14px;}
+  details.log summary{color:var(--muted);font-size:12.5px;cursor:pointer;}
+  .log-box{
+    background:#111;
+    border-radius:var(--radius-sm);
+    padding:10px;
+    font-family:monospace;
+    font-size:11px;
+    color:#8f8;
+    max-height:150px;
+    overflow-y:auto;
+    margin-top:8px;
+    white-space:pre-wrap;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Bancada de Corte</h1>
+  <div class="sub">Corte, divida e legende seus vídeos direto no navegador</div>
+</header>
+
+<main>
+
+  <!-- MOTOR -->
+  <div class="panel">
+    <div class="engine-status">
+      <div class="dot" id="engineDot"></div>
+      <span id="engineText">Motor de edição não carregado</span>
+    </div>
+    <div style="margin-top:12px;">
+      <button id="loadEngineBtn">Carregar motor de edição</button>
+    </div>
+    <div class="hint">Baixa cerca de 25&nbsp;MB na primeira vez. Prefira usar Wi-Fi.</div>
+  </div>
+
+  <!-- UPLOAD -->
+  <div class="panel" id="uploadPanel">
+    <div class="dropzone" id="dropzone">
+      <strong>Toque para escolher um vídeo</strong>
+      do rolo da câmera ou dos arquivos do celular
+    </div>
+    <input type="file" id="fileInput" accept="video/*">
+  </div>
+
+  <!-- PREVIEW + TOOLS (hidden until a video is loaded) -->
+  <div id="workArea" style="display:none;">
+
+    <div class="panel">
+      <video id="preview" controls playsinline></video>
+      <div class="meta-row">
+        <span>Duração</span>
+        <span class="val" id="durationLabel">--:--</span>
+      </div>
+      <div class="meta-row">
+        <span>Arquivo</span>
+        <span class="val" id="fileNameLabel">--</span>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="cortar">Cortar</div>
+      <div class="tab" data-tab="dividir">Dividir</div>
+      <div class="tab" data-tab="legenda">Legenda</div>
+    </div>
+
+    <!-- CORTAR -->
+    <div class="panel panel-view active" data-panel="cortar">
+      <div class="row2">
+        <div class="field">
+          <label class="field-label">Início (mm:ss)</label>
+          <input type="text" id="trimStart" placeholder="00:00">
+          <span class="use-now" data-target="trimStart">usar posição atual</span>
+        </div>
+        <div class="field">
+          <label class="field-label">Fim (mm:ss)</label>
+          <input type="text" id="trimEnd" placeholder="00:30">
+          <span class="use-now" data-target="trimEnd">usar posição atual</span>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Modo</label>
+        <select id="trimMode">
+          <option value="copy">Corte rápido (pode variar ±1s)</option>
+          <option value="reencode">Corte exato (mais lento)</option>
+        </select>
+      </div>
+      <button id="doTrimBtn">Cortar trecho</button>
+      <div class="progress-wrap" id="trimProgressWrap">
+        <div class="progress-bar" id="trimProgressBar"></div>
+      </div>
+      <div class="progress-label" id="trimProgressLabel"></div>
+      <div class="results" id="trimResults"></div>
+    </div>
+
+    <!-- DIVIDIR -->
+    <div class="panel panel-view" data-panel="dividir">
+      <div class="field">
+        <label class="field-label">Duração de cada parte (minutos)</label>
+        <input type="number" id="splitMinutes" value="10" min="1" step="1">
+      </div>
+      <div class="field">
+        <label class="field-label">Modo</label>
+        <select id="splitMode">
+          <option value="copy">Corte rápido (pode variar ±1s)</option>
+          <option value="reencode">Corte exato (mais lento)</option>
+        </select>
+      </div>
+      <div class="hint" id="splitPreviewHint" style="margin-bottom:12px;"></div>
+      <button id="doSplitBtn">Dividir vídeo</button>
+      <div class="progress-wrap" id="splitProgressWrap">
+        <div class="progress-bar" id="splitProgressBar"></div>
+      </div>
+      <div class="progress-label" id="splitProgressLabel"></div>
+      <div class="results" id="splitResults"></div>
+    </div>
+
+    <!-- LEGENDA -->
+    <div class="panel panel-view" data-panel="legenda">
+      <div class="field">
+        <label class="field-label">Texto da legenda</label>
+        <input type="text" id="capText" placeholder="Ex: se inscreva no canal!">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="field-label">Início (mm:ss)</label>
+          <input type="text" id="capStart" placeholder="00:00">
+          <span class="use-now" data-target="capStart">usar posição atual</span>
+        </div>
+        <div class="field">
+          <label class="field-label">Fim (mm:ss)</label>
+          <input type="text" id="capEnd" placeholder="00:05">
+          <span class="use-now" data-target="capEnd">usar posição atual</span>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label class="field-label">Posição</label>
+          <select id="capPos">
+            <option value="bottom">Embaixo</option>
+            <option value="top">Em cima</option>
+            <option value="center">Centro</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Tamanho da fonte</label>
+          <input type="number" id="capSize" value="42" min="16" max="120">
+        </div>
+      </div>
+      <div class="hint" style="margin-bottom:12px;">Isso recodifica o vídeo inteiro, então demora mais que um corte. Legenda é aplicada uma de cada vez — para várias, edite o resultado de novo.</div>
+      <button id="doCapBtn">Aplicar legenda</button>
+      <div class="progress-wrap" id="capProgressWrap">
+        <div class="progress-bar" id="capProgressBar"></div>
+      </div>
+      <div class="progress-label" id="capProgressLabel"></div>
+      <div class="results" id="capResults"></div>
+    </div>
+
+    <details class="log">
+      <summary>Registro técnico do motor</summary>
+      <div class="log-box" id="logBox"></div>
+    </details>
+
+  </div>
+
+</main>
+
+<script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  const $ = (sel, ctx) => (ctx||document).querySelector(sel);
+  const $all = (sel, ctx) => Array.from((ctx||document).querySelectorAll(sel));
+
+  const engineDot = $('#engineDot');
+  const engineText = $('#engineText');
+  const loadEngineBtn = $('#loadEngineBtn');
+  const logBox = $('#logBox');
+
+  let ffmpeg = null;
+  let engineReady = false;
+  let currentFile = null;
+  let currentFileName = 'video.mp4';
+  let videoDuration = 0;
+
+  function log(msg){
+    const line = document.createElement('div');
+    line.textContent = msg;
+    logBox.appendChild(line);
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  function setEngineState(state, text){
+    engineDot.className = 'dot' + (state ? ' ' + state : '');
+    engineText.textContent = text;
+  }
+
+  async function initEngine(){
+    if (engineReady) return;
+    if (typeof FFmpeg === 'undefined'){
+      setEngineState('', 'Falha ao carregar a biblioteca. Verifique sua conexão e recarregue a página.');
+      return;
+    }
+    loadEngineBtn.disabled = true;
+    setEngineState('busy', 'Baixando motor de edição...');
+    try{
+      const { createFFmpeg } = FFmpeg;
+      ffmpeg = createFFmpeg({
+        log: true,
+        corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
+        logger: ({message}) => log(message)
+      });
+      await ffmpeg.load();
+      engineReady = true;
+      setEngineState('ok', 'Motor pronto para editar');
+      loadEngineBtn.textContent = 'Motor carregado';
+    }catch(err){
+      log('Erro ao carregar: ' + err.message);
+      setEngineState('', 'Não foi possível carregar o motor nesta janela. Baixe o arquivo HTML e abra-o direto no navegador do celular.');
+      loadEngineBtn.disabled = false;
+    }
+  }
+  loadEngineBtn.addEventListener('click', initEngine);
+
+  // ---------- upload ----------
+  const dropzone = $('#dropzone');
+  const fileInput = $('#fileInput');
+  const workArea = $('#workArea');
+  const preview = $('#preview');
+  const durationLabel = $('#durationLabel');
+  const fileNameLabel = $('#fileNameLabel');
+
+  dropzone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    currentFile = f;
+    currentFileName = f.name || 'video.mp4';
+    const url = URL.createObjectURL(f);
+    preview.src = url;
+    fileNameLabel.textContent = currentFileName.length > 24 ? currentFileName.slice(0,21)+'...' : currentFileName;
+    workArea.style.display = 'block';
+  });
+
+  preview.addEventListener('loadedmetadata', () => {
+    videoDuration = preview.duration;
+    durationLabel.textContent = fmtTime(videoDuration);
+    updateSplitPreview();
+  });
+
+  // ---------- tabs ----------
+  $all('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      $all('.tab').forEach(t => t.classList.remove('active'));
+      $all('.panel-view').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      $(`.panel-view[data-panel="${tab.dataset.tab}"]`).classList.add('active');
+    });
+  });
+
+  // ---------- time helpers ----------
+  function fmtTime(sec){
+    sec = Math.max(0, Math.round(sec));
+    const m = Math.floor(sec/60);
+    const s = sec % 60;
+    return String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+  }
+  function parseTime(str){
+    if (!str) return null;
+    str = str.trim();
+    if (/^\d+$/.test(str)) return parseInt(str,10);
+    const parts = str.split(':').map(Number);
+    if (parts.some(isNaN)) return null;
+    if (parts.length === 2) return parts[0]*60 + parts[1];
+    if (parts.length === 3) return parts[0]*3600 + parts[1]*60 + parts[2];
+    return null;
+  }
+
+  $all('.use-now').forEach(el => {
+    el.addEventListener('click', () => {
+      const target = $('#' + el.dataset.target);
+      target.value = fmtTime(preview.currentTime);
+    });
+  });
+
+  $('#splitMinutes').addEventListener('input', updateSplitPreview);
+  function updateSplitPreview(){
+    const mins = parseFloat($('#splitMinutes').value) || 0;
+    const hint = $('#splitPreviewHint');
+    if (!videoDuration || mins <= 0){ hint.textContent=''; return; }
+    const partSec = mins * 60;
+    const count = Math.ceil(videoDuration / partSec);
+    hint.textContent = `Isso vai gerar ${count} parte(s) de até ${mins} min a partir de um vídeo de ${fmtTime(videoDuration)}.`;
+  }
+
+  // ---------- ffmpeg helpers ----------
+  async function ensureEngine(){
+    if (!engineReady){
+      alert('Carregue o motor de edição primeiro (botão no topo da página).');
+      throw new Error('engine not ready');
+    }
+  }
+
+  function escapeDrawtext(str){
+    return str
+      .replace(/\\/g, '\\\\\\\\')
+      .replace(/:/g, '\\:')
+      .replace(/'/g, "\u2019")
+      .replace(/%/g, '\\%');
+  }
+
+  function makeResultCard(container, blob, filename, label){
+    const url = URL.createObjectURL(blob);
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    card.innerHTML = `
+      <div class="r-title">${label}</div>
+      <video controls playsinline src="${url}"></video>
+      <a class="dl" download="${filename}" href="${url}">Baixar ${filename}</a>
+    `;
+    container.appendChild(card);
+  }
+
+  function wireProgress(barEl, labelEl, wrapEl){
+    wrapEl.classList.add('show');
+    barEl.style.width = '0%';
+    labelEl.textContent = 'Processando...';
+    ffmpeg.setProgress(({ ratio }) => {
+      const pct = Math.min(100, Math.max(0, Math.round((ratio||0)*100)));
+      barEl.style.width = pct + '%';
+      labelEl.textContent = pct + '%';
+    });
+  }
+  function finishProgress(barEl, labelEl, wrapEl, ok){
+    barEl.style.width = '100%';
+    labelEl.textContent = ok ? 'Concluído' : 'Falhou — veja o registro técnico';
+    setTimeout(() => wrapEl.classList.remove('show'), 1200);
+  }
+
+  const { fetchFile } = (typeof FFmpeg !== 'undefined') ? FFmpeg : { fetchFile: null };
+
+  // ---------- CORTAR ----------
+  $('#doTrimBtn').addEventListener('click', async () => {
+    try{
+      await ensureEngine();
+      if (!currentFile){ alert('Escolha um vídeo primeiro.'); return; }
+      const start = parseTime($('#trimStart').value);
+      const end = parseTime($('#trimEnd').value);
+      if (start === null || end === null || end <= start){
+        alert('Preencha início e fim válidos (fim maior que início).');
+        return;
+      }
+      const mode = $('#trimMode').value;
+      const btn = $('#doTrimBtn'); btn.disabled = true;
+      const barWrap = $('#trimProgressWrap'), bar = $('#trimProgressBar'), lbl = $('#trimProgressLabel');
+      wireProgress(bar, lbl, barWrap);
+
+      ffmpeg.FS('writeFile', 'in_trim.mp4', await fetchFile(currentFile));
+      const dur = end - start;
+      const outName = 'corte.mp4';
+      const args = mode === 'copy'
+        ? ['-ss', String(start), '-i', 'in_trim.mp4', '-t', String(dur), '-c', 'copy', outName]
+        : ['-i', 'in_trim.mp4', '-ss', String(start), '-t', String(dur), '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac', outName];
+      await ffmpeg.run(...args);
+      const data = ffmpeg.FS('readFile', outName);
+      const blob = new Blob([data.buffer], { type: 'video/mp4' });
+      makeResultCard($('#trimResults'), blob, `corte_${fmtTime(start).replace(':','m')}-${fmtTime(end).replace(':','m')}.mp4`, `Trecho de ${fmtTime(start)} a ${fmtTime(end)}`);
+      ffmpeg.FS('unlink', 'in_trim.mp4'); ffmpeg.FS('unlink', outName);
+      finishProgress(bar, lbl, barWrap, true);
+      btn.disabled = false;
+    }catch(err){
+      log('Erro no corte: ' + err.message);
+      finishProgress($('#trimProgressBar'), $('#trimProgressLabel'), $('#trimProgressWrap'), false);
+      $('#doTrimBtn').disabled = false;
+    }
+  });
+
+  // ---------- DIVIDIR ----------
+  $('#doSplitBtn').addEventListener('click', async () => {
+    try{
+      await ensureEngine();
+      if (!currentFile){ alert('Escolha um vídeo primeiro.'); return; }
+      if (!videoDuration){ alert('Aguarde o vídeo carregar completamente.'); return; }
+      const mins = parseFloat($('#splitMinutes').value);
+      if (!mins || mins <= 0){ alert('Informe uma duração válida em minutos.'); return; }
+      const mode = $('#splitMode').value;
+      const partSec = mins * 60;
+      const count = Math.ceil(videoDuration / partSec);
+      const btn = $('#doSplitBtn'); btn.disabled = true;
+      const container = $('#splitResults'); container.innerHTML = '';
+      const barWrap = $('#splitProgressWrap'), bar = $('#splitProgressBar'), lbl = $('#splitProgressLabel');
+      barWrap.classList.add('show');
+
+      ffmpeg.FS('writeFile', 'in_split.mp4', await fetchFile(currentFile));
+
+      for (let i=0; i<count; i++){
+        const start = i*partSec;
+        const dur = Math.min(partSec, videoDuration - start);
+        lbl.textContent = `Parte ${i+1} de ${count}...`;
+        ffmpeg.setProgress(({ratio}) => {
+          const overall = ((i + (ratio||0)) / count) * 100;
+          bar.style.width = Math.min(100, Math.round(overall)) + '%';
+        });
+        const outName = `parte_${i+1}.mp4`;
+        const args = mode === 'copy'
+          ? ['-ss', String(start), '-i', 'in_split.mp4', '-t', String(dur), '-c', 'copy', outName]
+          : ['-i', 'in_split.mp4', '-ss', String(start), '-t', String(dur), '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac', outName];
+        await ffmpeg.run(...args);
+        const data = ffmpeg.FS('readFile', outName);
+        const blob = new Blob([data.buffer], { type: 'video/mp4' });
+        makeResultCard(container, blob, outName, `Parte ${i+1} (${fmtTime(start)} – ${fmtTime(start+dur)})`);
+        ffmpeg.FS('unlink', outName);
+      }
+      ffmpeg.FS('unlink', 'in_split.mp4');
+      lbl.textContent = 'Concluído';
+      bar.style.width = '100%';
+      setTimeout(() => barWrap.classList.remove('show'), 1200);
+      btn.disabled = false;
+    }catch(err){
+      log('Erro ao dividir: ' + err.message);
+      $('#splitProgressLabel').textContent = 'Falhou — veja o registro técnico';
+      $('#doSplitBtn').disabled = false;
+    }
+  });
+
+  // ---------- LEGENDA ----------
+  let fontLoaded = false;
+  async function ensureFont(){
+    if (fontLoaded) return;
+    log('Baixando fonte para legendas...');
+    const fontData = await fetchFile('https://raw.githubusercontent.com/google/fonts/main/apache/roboto/Roboto-Regular.ttf');
+    ffmpeg.FS('writeFile', 'font.ttf', fontData);
+    fontLoaded = true;
+  }
+
+  $('#doCapBtn').addEventListener('click', async () => {
+    try{
+      await ensureEngine();
+      if (!currentFile){ alert('Escolha um vídeo primeiro.'); return; }
+      const text = $('#capText').value.trim();
+      if (!text){ alert('Digite o texto da legenda.'); return; }
+      const start = parseTime($('#capStart').value) ?? 0;
+      const end = parseTime($('#capEnd').value) ?? videoDuration;
+      const pos = $('#capPos').value;
+      const size = parseInt($('#capSize').value, 10) || 42;
+
+      const btn = $('#doCapBtn'); btn.disabled = true;
+      const barWrap = $('#capProgressWrap'), bar = $('#capProgressBar'), lbl = $('#capProgressLabel');
+      wireProgress(bar, lbl, barWrap);
+      lbl.textContent = 'Preparando fonte...';
+
+      await ensureFont();
+
+      ffmpeg.FS('writeFile', 'in_cap.mp4', await fetchFile(currentFile));
+
+      let yExpr = 'h-th-40';
+      if (pos === 'top') yExpr = '40';
+      if (pos === 'center') yExpr = '(h-th)/2';
+
+      const safeText = escapeDrawtext(text);
+      const filter = `drawtext=fontfile=font.ttf:text='${safeText}':fontsize=${size}:fontcolor=white:x=(w-text_w)/2:y=${yExpr}:box=1:boxcolor=black@0.5:boxborderw=12:enable='between(t,${start},${end})'`;
+
+      lbl.textContent = 'Renderizando legenda (pode demorar)...';
+      const outName = 'legendado.mp4';
+      await ffmpeg.run('-i', 'in_cap.mp4', '-vf', filter, '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'copy', outName);
+      const data = ffmpeg.FS('readFile', outName);
+      const blob = new Blob([data.buffer], { type: 'video/mp4' });
+      makeResultCard($('#capResults'), blob, 'legendado.mp4', `Legenda de ${fmtTime(start)} a ${fmtTime(end)}`);
+      ffmpeg.FS('unlink', 'in_cap.mp4'); ffmpeg.FS('unlink', outName);
+      finishProgress(bar, lbl, barWrap, true);
+      btn.disabled = false;
+    }catch(err){
+      log('Erro na legenda: ' + err.message);
+      finishProgress($('#capProgressBar'), $('#capProgressLabel'), $('#capProgressWrap'), false);
+      $('#doCapBtn').disabled = false;
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
