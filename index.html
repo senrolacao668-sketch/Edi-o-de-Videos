@@ -228,22 +228,6 @@
 
 <main>
 
-  <!-- MOTOR -->
-  <div class="panel">
-    <div class="engine-status">
-      <div class="dot" id="engineDot"></div>
-      <span id="engineText">Motor de edição não carregado</span>
-    </div>
-    <div style="margin-top:12px;">
-      <button id="loadEngineBtn">Carregar motor de edição</button>
-    </div>
-    <div class="progress-wrap" id="engineProgressWrap">
-      <div class="progress-bar" id="engineProgressBar"></div>
-    </div>
-    <div class="progress-label" id="engineProgressLabel"></div>
-    <div class="hint">Baixa cerca de 25&nbsp;MB na primeira vez e depois compila no celular (pode levar 1–2 min em aparelhos mais simples). Da próxima vez fica em cache e é bem mais rápido. Prefira usar Wi-Fi e não feche a aba enquanto carrega.</div>
-  </div>
-
   <!-- UPLOAD -->
   <div class="panel" id="uploadPanel">
     <div class="dropzone" id="dropzone">
@@ -251,6 +235,7 @@
       do rolo da câmera ou dos arquivos do celular
     </div>
     <input type="file" id="fileInput" accept="video/*">
+    <div class="hint">Processado direto no seu celular — o vídeo não é enviado pra nenhum servidor.</div>
   </div>
 
   <!-- PREVIEW + TOOLS (hidden until a video is loaded) -->
@@ -288,13 +273,7 @@
           <span class="use-now" data-target="trimEnd">usar posição atual</span>
         </div>
       </div>
-      <div class="field">
-        <label class="field-label">Modo</label>
-        <select id="trimMode">
-          <option value="copy">Corte rápido (pode variar ±1s)</option>
-          <option value="reencode">Corte exato (mais lento)</option>
-        </select>
-      </div>
+      <div class="hint" style="margin-bottom:12px;">Corte alinhado ao quadro-chave mais próximo (pode variar um pouquinho, geralmente menos de 1s). Cópia exata dos dados — sem perda de qualidade e quase instantâneo.</div>
       <button id="doTrimBtn">Cortar trecho</button>
       <div class="progress-wrap" id="trimProgressWrap">
         <div class="progress-bar" id="trimProgressBar"></div>
@@ -309,13 +288,6 @@
         <label class="field-label">Duração de cada parte (minutos)</label>
         <input type="number" id="splitMinutes" value="10" min="1" step="1">
       </div>
-      <div class="field">
-        <label class="field-label">Modo</label>
-        <select id="splitMode">
-          <option value="copy">Corte rápido (pode variar ±1s)</option>
-          <option value="reencode">Corte exato (mais lento)</option>
-        </select>
-      </div>
       <div class="hint" id="splitPreviewHint" style="margin-bottom:12px;"></div>
       <button id="doSplitBtn">Dividir vídeo</button>
       <div class="progress-wrap" id="splitProgressWrap">
@@ -327,43 +299,7 @@
 
     <!-- LEGENDA -->
     <div class="panel panel-view" data-panel="legenda">
-      <div class="field">
-        <label class="field-label">Texto da legenda</label>
-        <input type="text" id="capText" placeholder="Ex: se inscreva no canal!">
-      </div>
-      <div class="row2">
-        <div class="field">
-          <label class="field-label">Início (mm:ss)</label>
-          <input type="text" id="capStart" placeholder="00:00">
-          <span class="use-now" data-target="capStart">usar posição atual</span>
-        </div>
-        <div class="field">
-          <label class="field-label">Fim (mm:ss)</label>
-          <input type="text" id="capEnd" placeholder="00:05">
-          <span class="use-now" data-target="capEnd">usar posição atual</span>
-        </div>
-      </div>
-      <div class="row2">
-        <div class="field">
-          <label class="field-label">Posição</label>
-          <select id="capPos">
-            <option value="bottom">Embaixo</option>
-            <option value="top">Em cima</option>
-            <option value="center">Centro</option>
-          </select>
-        </div>
-        <div class="field">
-          <label class="field-label">Tamanho da fonte</label>
-          <input type="number" id="capSize" value="42" min="16" max="120">
-        </div>
-      </div>
-      <div class="hint" style="margin-bottom:12px;">Isso recodifica o vídeo inteiro, então demora mais que um corte. Legenda é aplicada uma de cada vez — para várias, edite o resultado de novo.</div>
-      <button id="doCapBtn">Aplicar legenda</button>
-      <div class="progress-wrap" id="capProgressWrap">
-        <div class="progress-bar" id="capProgressBar"></div>
-      </div>
-      <div class="progress-label" id="capProgressLabel"></div>
-      <div class="results" id="capResults"></div>
+      <div class="hint">🔧 Em construção — essa função ainda usa a lógica antiga (pesada) e está sendo migrada pro motor novo, mais leve. Por enquanto, use Cortar ou Dividir.</div>
     </div>
 
     <details class="log">
@@ -376,29 +312,13 @@
 </main>
 
 <script type="module">
-import { FFmpeg } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/esm/index.js';
-import { fetchFile } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist/esm/index.js';
-
 (async function(){
   "use strict";
 
   const $ = (sel, ctx) => (ctx||document).querySelector(sel);
   const $all = (sel, ctx) => Array.from((ctx||document).querySelectorAll(sel));
 
-  const engineDot = $('#engineDot');
-  const engineText = $('#engineText');
-  const loadEngineBtn = $('#loadEngineBtn');
   const logBox = $('#logBox');
-  const engineProgressWrap = $('#engineProgressWrap');
-  const engineProgressBar = $('#engineProgressBar');
-  const engineProgressLabel = $('#engineProgressLabel');
-
-  let ffmpeg = null;
-  let engineReady = false;
-  let currentFile = null;
-  let currentFileName = 'video.mp4';
-  let videoDuration = 0;
-
   function log(msg){
     const line = document.createElement('div');
     line.textContent = msg;
@@ -406,150 +326,258 @@ import { fetchFile } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist
     logBox.scrollTop = logBox.scrollHeight;
   }
 
-  function setEngineState(state, text){
-    engineDot.className = 'dot' + (state ? ' ' + state : '');
-    engineText.textContent = text;
+  let MP4Box;
+  try{
+    const mod = await import('https://cdn.jsdelivr.net/npm/mp4box@0.5.2/+esm');
+    MP4Box = mod.default || mod;
+    log('Biblioteca de vídeo carregada.');
+  }catch(e){
+    log('Erro ao carregar biblioteca: ' + e.message);
+    $('#uploadPanel').insertAdjacentHTML('beforebegin', `<div class="panel" style="color:#c1554b;">Não foi possível carregar a biblioteca de vídeo. Verifique sua internet e recarregue a página.</div>`);
+    return;
   }
 
-  // ---------- download com cache + progresso ----------
-  const ENGINE_CACHE = 'bancada-corte-engine-v1';
+  let currentFile = null;
+  let currentFileName = 'video.mp4';
+  let videoDuration = 0;
+  let parsedCache = null; // { ctx, forFile }
 
-  async function fetchWithCacheAndProgress(url, mimeType, onProgress){
-    let cache = null;
-    try{ cache = await caches.open(ENGINE_CACHE); }catch(e){ log('Cache indisponível: ' + e.message); }
+  // ================= LÓGICA DE REMONTAGEM DE MP4 (sem recodificar) =================
 
-    if (cache){
-      const cached = await cache.match(url);
-      if (cached){
-        const buf = await cached.arrayBuffer();
-        onProgress(buf.byteLength, buf.byteLength, true);
-        return URL.createObjectURL(new Blob([buf], { type: mimeType }));
-      }
-    }
-
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error('Falha ao baixar ' + url + ' (HTTP ' + resp.status + ')');
-    const total = parseInt(resp.headers.get('content-length') || '0', 10);
-
-    // fallback se o navegador não suportar streaming de resposta
-    if (!resp.body || !resp.body.getReader){
-      const buf = await resp.arrayBuffer();
-      onProgress(buf.byteLength, buf.byteLength || total, false);
-      const blob = new Blob([buf], { type: mimeType });
-      if (cache){ try{ await cache.put(url, new Response(blob, {headers:{'Content-Type':mimeType}})); }catch(e){} }
-      return URL.createObjectURL(blob);
-    }
-
-    const reader = resp.body.getReader();
-    const chunks = [];
-    let received = 0;
-    while (true){
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      received += value.length;
-      onProgress(received, total, false);
-    }
-    const blob = new Blob(chunks, { type: mimeType });
-    if (cache){
-      try{ await cache.put(url, new Response(blob.slice(0), { headers: {'Content-Type': mimeType} })); }
-      catch(e){ log('Não foi possível guardar cache: ' + e.message); }
-    }
-    return URL.createObjectURL(blob);
+  function u16(v){ const b=new Uint8Array(2); b[0]=(v>>>8)&0xff; b[1]=v&0xff; return b; }
+  function u32(v){ const b=new Uint8Array(4); b[0]=(v>>>24)&0xff; b[1]=(v>>>16)&0xff; b[2]=(v>>>8)&0xff; b[3]=v&0xff; return b; }
+  function fourcc(s){ return new TextEncoder().encode(s); }
+  function concat(arrays){
+    let total=0; for(const a of arrays) total+=a.length;
+    const out=new Uint8Array(total); let o=0;
+    for(const a of arrays){ out.set(a,o); o+=a.length; }
+    return out;
+  }
+  function makeBox(type, payload){ return concat([u32(8+payload.length), fourcc(type), payload]); }
+  function makeFullBox(type, version, flags, payload){
+    const vf = concat([new Uint8Array([version]), u32(flags).slice(1)]);
+    return makeBox(type, concat([vf, payload]));
   }
 
-  function withTimeout(promise, ms, message){
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(message)), ms);
-      promise.then(
-        (v) => { clearTimeout(timer); resolve(v); },
-        (e) => { clearTimeout(timer); reject(e); }
-      );
+  function buildMvhd(timescale, duration, nextTrackId){
+    const identity = [0x00010000,0,0, 0,0x00010000,0, 0,0,0x40000000];
+    const payload = concat([
+      u32(0), u32(0), u32(timescale), u32(duration),
+      u32(0x00010000), u16(0x0100), u16(0), u32(0), u32(0),
+      concat(identity.map(v=>u32(v>>>0))),
+      u32(0),u32(0),u32(0),u32(0),u32(0),u32(0),
+      u32(nextTrackId)
+    ]);
+    return makeFullBox('mvhd', 0, 0, payload);
+  }
+  function buildTkhd(trackId, duration, width, height, matrix, volume){
+    const payload = concat([
+      u32(0), u32(0), u32(trackId), u32(0), u32(duration), u32(0), u32(0),
+      u16(0), u16(0), u16(volume), u16(0),
+      concat(matrix.map(v=>u32(v>>>0))),
+      u32(width>>>0), u32(height>>>0)
+    ]);
+    return makeFullBox('tkhd', 0, 7, payload);
+  }
+  function buildMdhd(timescale, duration, language){
+    const payload = concat([ u32(0), u32(0), u32(timescale), u32(duration), u16(language), u16(0) ]);
+    return makeFullBox('mdhd', 0, 0, payload);
+  }
+  function buildStts(durations){
+    const entries=[];
+    for(const d of durations){
+      if(entries.length && entries[entries.length-1].delta===d) entries[entries.length-1].count++;
+      else entries.push({count:1, delta:d});
+    }
+    const payload = concat([u32(entries.length), ...entries.flatMap(e=>[u32(e.count), u32(e.delta)])]);
+    return makeFullBox('stts', 0, 0, payload);
+  }
+  function buildStsz(sizes){
+    const payload = concat([u32(0), u32(sizes.length), ...sizes.map(s=>u32(s))]);
+    return makeFullBox('stsz', 0, 0, payload);
+  }
+  function buildStsc(){
+    const payload = concat([u32(1), u32(1), u32(1), u32(1)]);
+    return makeFullBox('stsc', 0, 0, payload);
+  }
+  function buildStco(offsets){
+    const payload = concat([u32(offsets.length), ...offsets.map(o=>u32(o))]);
+    return makeFullBox('stco', 0, 0, payload);
+  }
+  function buildStss(nums){
+    const payload = concat([u32(nums.length), ...nums.map(n=>u32(n))]);
+    return makeFullBox('stss', 0, 0, payload);
+  }
+  function buildCtts(offsets){
+    const hasNeg = offsets.some(v=>v<0);
+    const entries=[];
+    for(const o of offsets){
+      if(entries.length && entries[entries.length-1].offset===o) entries[entries.length-1].count++;
+      else entries.push({count:1, offset:o});
+    }
+    const payload = concat([u32(entries.length), ...entries.flatMap(e=>[u32(e.count), u32(e.offset>>>0)])]);
+    return makeFullBox('ctts', hasNeg?1:0, 0, payload);
+  }
+  function buildStbl(stsdRaw, stts, stsz, stsc, stco, stss, ctts){
+    const children = [stsdRaw, stts];
+    if(ctts) children.push(ctts);
+    if(stss) children.push(stss);
+    children.push(stsc, stsz, stco);
+    return makeBox('stbl', concat(children));
+  }
+  function buildMinf(mediaHeaderRaw, dinfRaw, stbl){ return makeBox('minf', concat([mediaHeaderRaw, dinfRaw, stbl])); }
+  function buildMdia(mdhd, hdlrRaw, minf){ return makeBox('mdia', concat([mdhd, hdlrRaw, minf])); }
+  function buildTrak(tkhd, mdia){ return makeBox('trak', concat([tkhd, mdia])); }
+  function buildMoov(mvhd, trakBoxes){ return makeBox('moov', concat([mvhd, ...trakBoxes])); }
+
+  function extractContext(mp4boxfile, buffer){
+    const moov = mp4boxfile.moov;
+    const ftypRaw = new Uint8Array(buffer, mp4boxfile.ftyp.start, mp4boxfile.ftyp.size);
+    const movieTimescale = moov.mvhd.timescale;
+    const tracks = moov.traks.map(trak => {
+      const tkhd = trak.tkhd;
+      const mdhd = trak.mdia.mdhd;
+      const hdlr = trak.mdia.hdlr;
+      const minf = trak.mdia.minf;
+      const isVideo = !!minf.vmhd;
+      const isAudio = !!minf.smhd;
+      if (!isVideo && !isAudio) return null; // ignora faixas de legenda/metadados/hint
+      const mediaHeaderBox = isVideo ? minf.vmhd : minf.smhd;
+      const stsd = minf.stbl.stsd;
+      return {
+        id: tkhd.track_id,
+        type: isVideo ? 'video' : 'audio',
+        timescale: mdhd.timescale,
+        language: mdhd.language,
+        matrix: tkhd.matrix,
+        width: tkhd.width,
+        height: tkhd.height,
+        volume: tkhd.volume,
+        stsdRaw: new Uint8Array(buffer, stsd.start, stsd.size),
+        hdlrRaw: new Uint8Array(buffer, hdlr.start, hdlr.size),
+        mediaHeaderRaw: new Uint8Array(buffer, mediaHeaderBox.start, mediaHeaderBox.size),
+        dinfRaw: new Uint8Array(buffer, minf.dinf.start, minf.dinf.size),
+        samples: []
+      };
+    }).filter(Boolean);
+    return { ftypRaw, movieTimescale, tracks };
+  }
+
+  async function parseMp4(file){
+    log('Lendo arquivo (' + (file.size/1024/1024).toFixed(1) + 'MB)...');
+    const buffer = await file.arrayBuffer();
+    buffer.fileStart = 0;
+    const mp4boxfile = MP4Box.createFile();
+    mp4boxfile.onError = (e) => log('Erro no mp4box: ' + e);
+
+    const info = await new Promise((resolve) => { mp4boxfile.onReady = resolve; mp4boxfile.appendBuffer(buffer); });
+    log('Metadados lidos. Extraindo amostras...');
+
+    const ctx = extractContext(mp4boxfile, buffer);
+    const keptIds = new Set(ctx.tracks.map(t=>t.id));
+    const expectedTotal = info.tracks.filter(t=>keptIds.has(t.id)).reduce((s,t)=>s+t.nb_samples,0);
+    let collected = 0;
+
+    const samplesReady = expectedTotal === 0 ? Promise.resolve() : new Promise((resolve) => {
+      mp4boxfile.onSamples = (track_id, user, samples) => {
+        const t = ctx.tracks.find(tt=>tt.id===track_id);
+        if (t) t.samples.push(...samples);
+        collected += samples.length;
+        if (collected >= expectedTotal) resolve();
+      };
     });
-  }
-
-  const ENGINE_LOAD_TIMEOUT_MS = 90000; // 90s de folga pra celulares mais fracos
-
-  async function initEngine(){
-    if (engineReady) return;
-    loadEngineBtn.disabled = true;
-    engineProgressWrap.classList.add('show');
-    engineProgressBar.classList.remove('indeterminate');
-    engineProgressBar.style.width = '0%';
-    setEngineState('busy', 'Baixando motor de edição...');
-    try{
-      ffmpeg = new FFmpeg();
-      ffmpeg.on('log', ({message}) => log(message));
-
-      const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm';
-      const ffmpegBase = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/esm';
-
-      function updateProgress(stage, received, total, cached){
-        if (cached){
-          engineProgressBar.style.width = '100%';
-          engineProgressLabel.textContent = stage + ' — já em cache, instantâneo';
-          return;
-        }
-        const pct = total ? Math.min(100, Math.round((received/total)*100)) : 0;
-        engineProgressBar.style.width = pct + '%';
-        const mb = (received/1024/1024).toFixed(1);
-        const totalMb = total ? (total/1024/1024).toFixed(1) : '?';
-        engineProgressLabel.textContent = `${stage} — ${mb}MB / ${totalMb}MB (${pct}%)`;
-      }
-
-      const coreURL = await fetchWithCacheAndProgress(
-        `${baseURL}/ffmpeg-core.js`, 'text/javascript',
-        (r,t,c) => updateProgress('Baixando núcleo (1/3)', r, t, c)
-      );
-      const wasmURL = await fetchWithCacheAndProgress(
-        `${baseURL}/ffmpeg-core.wasm`, 'application/wasm',
-        (r,t,c) => updateProgress('Baixando WebAssembly (2/3)', r, t, c)
-      );
-      const workerURL = await fetchWithCacheAndProgress(
-        `${ffmpegBase}/worker.js`, 'text/javascript',
-        (r,t,c) => updateProgress('Baixando worker (3/3)', r, t, c)
-      );
-
-      engineProgressBar.style.width = '100%';
-      engineProgressBar.classList.add('indeterminate');
-      setEngineState('busy', 'Inicializando motor...');
-
-      let elapsed = 0;
-      engineProgressLabel.textContent = 'Compilando WebAssembly no celular... 0s';
-      const tickInterval = setInterval(() => {
-        elapsed++;
-        engineProgressLabel.textContent = `Compilando WebAssembly no celular... ${elapsed}s (pode levar 1–2 min em aparelhos mais simples, não feche a aba)`;
-      }, 1000);
-
-      try{
-        await withTimeout(
-          ffmpeg.load({ coreURL, wasmURL, classWorkerURL: workerURL }),
-          ENGINE_LOAD_TIMEOUT_MS,
-          `Tempo esgotado (mais de ${ENGINE_LOAD_TIMEOUT_MS/1000}s) inicializando o motor.`
-        );
-      } finally {
-        clearInterval(tickInterval);
-      }
-
-      engineProgressBar.classList.remove('indeterminate');
-      engineReady = true;
-      setEngineState('ok', 'Motor pronto para editar');
-      loadEngineBtn.textContent = 'Motor carregado';
-      engineProgressLabel.textContent = 'Pronto!';
-      setTimeout(() => engineProgressWrap.classList.remove('show'), 1500);
-    }catch(err){
-      log('Erro ao carregar: ' + err.message);
-      setEngineState('', 'Falhou ao carregar. Toque no botão para tentar de novo, ou baixe o arquivo HTML e abra-o direto no navegador do celular.');
-      engineProgressBar.classList.remove('indeterminate');
-      engineProgressLabel.textContent = 'Falhou — veja o registro técnico';
-      try{ if (ffmpeg) ffmpeg.terminate(); }catch(e){}
-      ffmpeg = null;
-      engineReady = false;
-      loadEngineBtn.disabled = false;
-      loadEngineBtn.textContent = 'Tentar carregar de novo';
+    for(const t of info.tracks){
+      if (!keptIds.has(t.id)) continue;
+      mp4boxfile.setExtractionOptions(t.id, t.id, { nbSamples: Math.max(t.nb_samples, 1) });
     }
+    mp4boxfile.start();
+    await samplesReady;
+
+    for(const t of ctx.tracks) t.samples.sort((a,b)=>a.cts-b.cts);
+    log('Amostras extraídas: ' + collected);
+    return ctx;
   }
-  loadEngineBtn.addEventListener('click', initEngine);
+
+  function buildTrimmedMp4(ctx, startSec, endSec){
+    const videoTrack = ctx.tracks.find(t=>t.type==='video') || ctx.tracks[0];
+    const vScale = videoTrack.timescale;
+    const startUnits = Math.round(startSec*vScale);
+
+    let snappedStartUnits = videoTrack.samples[0] ? videoTrack.samples[0].cts : 0;
+    for(const s of videoTrack.samples){
+      if (s.cts > startUnits) break;
+      if (s.is_sync) snappedStartUnits = s.cts;
+    }
+    const snappedStartSec = snappedStartUnits / vScale;
+
+    const outTracks = [];
+    for(const track of ctx.tracks){
+      const scale = track.timescale;
+      const lo = Math.round(snappedStartSec*scale);
+      const hi = Math.round(endSec*scale);
+      const sel = track.samples.filter(s => s.cts >= lo && s.cts < hi);
+      if (sel.length === 0) continue;
+      const shiftedDurations = sel.map(s=>s.duration);
+      const shiftedCtts = sel.map(s=>s.cts - s.dts);
+      const syncNumbers = [];
+      sel.forEach((s,i)=>{ if(s.is_sync) syncNumbers.push(i+1); });
+      outTracks.push({
+        ...track, sel,
+        sizes: sel.map(s=>s.size),
+        shiftedDurations,
+        hasCtts: shiftedCtts.some(v=>v!==0),
+        shiftedCtts,
+        syncNumbers,
+        allSync: syncNumbers.length === sel.length,
+        mediaDurationUnits: shiftedDurations.reduce((a,b)=>a+b,0)
+      });
+    }
+    if (outTracks.length === 0) throw new Error('Nenhuma amostra encontrada nesse intervalo.');
+
+    const movieDurationUnits = Math.round((endSec - snappedStartSec) * ctx.movieTimescale);
+
+    function assemble(offsetsPerTrack){
+      const trakBoxes = outTracks.map((t, idx) => {
+        const stts = buildStts(t.shiftedDurations);
+        const stsz = buildStsz(t.sizes);
+        const stsc = buildStsc();
+        const stco = buildStco(offsetsPerTrack[idx]);
+        const stss = t.allSync ? null : buildStss(t.syncNumbers);
+        const ctts = t.hasCtts ? buildCtts(t.shiftedCtts) : null;
+        const stbl = buildStbl(t.stsdRaw, stts, stsz, stsc, stco, stss, ctts);
+        const minf = buildMinf(t.mediaHeaderRaw, t.dinfRaw, stbl);
+        const mdhd = buildMdhd(t.timescale, t.mediaDurationUnits, t.language);
+        const mdia = buildMdia(mdhd, t.hdlrRaw, minf);
+        const tkhd = buildTkhd(t.id, movieDurationUnits, t.width, t.height, t.matrix, t.volume);
+        return buildTrak(tkhd, mdia);
+      });
+      const mvhd = buildMvhd(ctx.movieTimescale, movieDurationUnits, ctx.tracks.length+1);
+      return buildMoov(mvhd, trakBoxes);
+    }
+
+    const dummyOffsets = outTracks.map(t => t.sel.map(()=>0));
+    const moovDummy = assemble(dummyOffsets);
+    const mdatStart = ctx.ftypRaw.length + moovDummy.length + 8;
+
+    let cursor = mdatStart;
+    const realOffsets = [];
+    const sampleDataInOrder = [];
+    for(const t of outTracks){
+      const offs = [];
+      for(const s of t.sel){ offs.push(cursor); cursor += s.size; sampleDataInOrder.push(s.data); }
+      realOffsets.push(offs);
+    }
+    const moovReal = assemble(realOffsets);
+    const mdat = makeBox('mdat', concat(sampleDataInOrder));
+    return concat([ctx.ftypRaw, moovReal, mdat]);
+  }
+
+  async function ensureParsed(){
+    if (parsedCache && parsedCache.forFile === currentFile) return parsedCache.ctx;
+    const ctx = await parseMp4(currentFile);
+    parsedCache = { ctx, forFile: currentFile };
+    return ctx;
+  }
 
   // ---------- upload ----------
   const dropzone = $('#dropzone');
@@ -565,6 +593,7 @@ import { fetchFile } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist
     if (!f) return;
     currentFile = f;
     currentFileName = f.name || 'video.mp4';
+    parsedCache = null;
     const url = URL.createObjectURL(f);
     preview.src = url;
     fileNameLabel.textContent = currentFileName.length > 24 ? currentFileName.slice(0,21)+'...' : currentFileName;
@@ -622,22 +651,6 @@ import { fetchFile } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist
     hint.textContent = `Isso vai gerar ${count} parte(s) de até ${mins} min a partir de um vídeo de ${fmtTime(videoDuration)}.`;
   }
 
-  // ---------- ffmpeg helpers ----------
-  async function ensureEngine(){
-    if (!engineReady){
-      alert('Carregue o motor de edição primeiro (botão no topo da página).');
-      throw new Error('engine not ready');
-    }
-  }
-
-  function escapeDrawtext(str){
-    return str
-      .replace(/\\/g, '\\\\\\\\')
-      .replace(/:/g, '\\:')
-      .replace(/'/g, "\u2019")
-      .replace(/%/g, '\\%');
-  }
-
   function makeResultCard(container, blob, filename, label){
     const url = URL.createObjectURL(blob);
     const card = document.createElement('div');
@@ -650,16 +663,6 @@ import { fetchFile } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist
     container.appendChild(card);
   }
 
-  function wireProgress(barEl, labelEl, wrapEl){
-    wrapEl.classList.add('show');
-    barEl.style.width = '0%';
-    labelEl.textContent = 'Processando...';
-    ffmpeg.on('progress', ({ progress }) => {
-      const pct = Math.min(100, Math.max(0, Math.round((progress||0)*100)));
-      barEl.style.width = pct + '%';
-      labelEl.textContent = pct + '%';
-    });
-  }
   function finishProgress(barEl, labelEl, wrapEl, ok){
     barEl.style.width = '100%';
     labelEl.textContent = ok ? 'Concluído' : 'Falhou — veja o registro técnico';
@@ -668,8 +671,9 @@ import { fetchFile } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist
 
   // ---------- CORTAR ----------
   $('#doTrimBtn').addEventListener('click', async () => {
+    const btn = $('#doTrimBtn');
+    const barWrap = $('#trimProgressWrap'), bar = $('#trimProgressBar'), lbl = $('#trimProgressLabel');
     try{
-      await ensureEngine();
       if (!currentFile){ alert('Escolha um vídeo primeiro.'); return; }
       const start = parseTime($('#trimStart').value);
       const end = parseTime($('#trimEnd').value);
@@ -677,129 +681,58 @@ import { fetchFile } from 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist
         alert('Preencha início e fim válidos (fim maior que início).');
         return;
       }
-      const mode = $('#trimMode').value;
-      const btn = $('#doTrimBtn'); btn.disabled = true;
-      const barWrap = $('#trimProgressWrap'), bar = $('#trimProgressBar'), lbl = $('#trimProgressLabel');
-      wireProgress(bar, lbl, barWrap);
+      btn.disabled = true;
+      barWrap.classList.add('show'); bar.style.width = '20%'; lbl.textContent = 'Lendo vídeo...';
 
-      await ffmpeg.writeFile('in_trim.mp4', await fetchFile(currentFile));
-      const dur = end - start;
-      const outName = 'corte.mp4';
-      const args = mode === 'copy'
-        ? ['-ss', String(start), '-i', 'in_trim.mp4', '-t', String(dur), '-c', 'copy', outName]
-        : ['-i', 'in_trim.mp4', '-ss', String(start), '-t', String(dur), '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac', outName];
-      await ffmpeg.exec(args);
-      const data = await ffmpeg.readFile(outName);
-      const blob = new Blob([data.buffer], { type: 'video/mp4' });
+      const ctx = await ensureParsed();
+      bar.style.width = '70%'; lbl.textContent = 'Montando o corte...';
+
+      const outBytes = buildTrimmedMp4(ctx, start, end);
+      const blob = new Blob([outBytes], { type: 'video/mp4' });
       makeResultCard($('#trimResults'), blob, `corte_${fmtTime(start).replace(':','m')}-${fmtTime(end).replace(':','m')}.mp4`, `Trecho de ${fmtTime(start)} a ${fmtTime(end)}`);
-      await ffmpeg.deleteFile('in_trim.mp4'); await ffmpeg.deleteFile(outName);
       finishProgress(bar, lbl, barWrap, true);
       btn.disabled = false;
     }catch(err){
       log('Erro no corte: ' + err.message);
-      finishProgress($('#trimProgressBar'), $('#trimProgressLabel'), $('#trimProgressWrap'), false);
-      $('#doTrimBtn').disabled = false;
+      finishProgress(bar, lbl, barWrap, false);
+      btn.disabled = false;
     }
   });
 
   // ---------- DIVIDIR ----------
   $('#doSplitBtn').addEventListener('click', async () => {
+    const btn = $('#doSplitBtn');
+    const barWrap = $('#splitProgressWrap'), bar = $('#splitProgressBar'), lbl = $('#splitProgressLabel');
     try{
-      await ensureEngine();
       if (!currentFile){ alert('Escolha um vídeo primeiro.'); return; }
       if (!videoDuration){ alert('Aguarde o vídeo carregar completamente.'); return; }
       const mins = parseFloat($('#splitMinutes').value);
       if (!mins || mins <= 0){ alert('Informe uma duração válida em minutos.'); return; }
-      const mode = $('#splitMode').value;
       const partSec = mins * 60;
       const count = Math.ceil(videoDuration / partSec);
-      const btn = $('#doSplitBtn'); btn.disabled = true;
+      btn.disabled = true;
       const container = $('#splitResults'); container.innerHTML = '';
-      const barWrap = $('#splitProgressWrap'), bar = $('#splitProgressBar'), lbl = $('#splitProgressLabel');
-      barWrap.classList.add('show');
+      barWrap.classList.add('show'); bar.style.width = '10%'; lbl.textContent = 'Lendo vídeo...';
 
-      await ffmpeg.writeFile('in_split.mp4', await fetchFile(currentFile));
+      const ctx = await ensureParsed();
 
       for (let i=0; i<count; i++){
         const start = i*partSec;
         const dur = Math.min(partSec, videoDuration - start);
         lbl.textContent = `Parte ${i+1} de ${count}...`;
-        ffmpeg.on('progress', ({progress}) => {
-          const overall = ((i + (progress||0)) / count) * 100;
-          bar.style.width = Math.min(100, Math.round(overall)) + '%';
-        });
-        const outName = `parte_${i+1}.mp4`;
-        const args = mode === 'copy'
-          ? ['-ss', String(start), '-i', 'in_split.mp4', '-t', String(dur), '-c', 'copy', outName]
-          : ['-i', 'in_split.mp4', '-ss', String(start), '-t', String(dur), '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'aac', outName];
-        await ffmpeg.exec(args);
-        const data = await ffmpeg.readFile(outName);
-        const blob = new Blob([data.buffer], { type: 'video/mp4' });
-        makeResultCard(container, blob, outName, `Parte ${i+1} (${fmtTime(start)} – ${fmtTime(start+dur)})`);
-        await ffmpeg.deleteFile(outName);
+        bar.style.width = Math.round(((i+1)/count)*100) + '%';
+        const outBytes = buildTrimmedMp4(ctx, start, start+dur);
+        const blob = new Blob([outBytes], { type: 'video/mp4' });
+        makeResultCard(container, blob, `parte_${i+1}.mp4`, `Parte ${i+1} (${fmtTime(start)} – ${fmtTime(start+dur)})`);
       }
-      await ffmpeg.deleteFile('in_split.mp4');
       lbl.textContent = 'Concluído';
       bar.style.width = '100%';
       setTimeout(() => barWrap.classList.remove('show'), 1200);
       btn.disabled = false;
     }catch(err){
       log('Erro ao dividir: ' + err.message);
-      $('#splitProgressLabel').textContent = 'Falhou — veja o registro técnico';
-      $('#doSplitBtn').disabled = false;
-    }
-  });
-
-  // ---------- LEGENDA ----------
-  let fontLoaded = false;
-  async function ensureFont(){
-    if (fontLoaded) return;
-    log('Baixando fonte para legendas...');
-    const fontData = await fetchFile('https://raw.githubusercontent.com/google/fonts/main/apache/roboto/Roboto-Regular.ttf');
-    await ffmpeg.writeFile('font.ttf', fontData);
-    fontLoaded = true;
-  }
-
-  $('#doCapBtn').addEventListener('click', async () => {
-    try{
-      await ensureEngine();
-      if (!currentFile){ alert('Escolha um vídeo primeiro.'); return; }
-      const text = $('#capText').value.trim();
-      if (!text){ alert('Digite o texto da legenda.'); return; }
-      const start = parseTime($('#capStart').value) ?? 0;
-      const end = parseTime($('#capEnd').value) ?? videoDuration;
-      const pos = $('#capPos').value;
-      const size = parseInt($('#capSize').value, 10) || 42;
-
-      const btn = $('#doCapBtn'); btn.disabled = true;
-      const barWrap = $('#capProgressWrap'), bar = $('#capProgressBar'), lbl = $('#capProgressLabel');
-      wireProgress(bar, lbl, barWrap);
-      lbl.textContent = 'Preparando fonte...';
-
-      await ensureFont();
-
-      await ffmpeg.writeFile('in_cap.mp4', await fetchFile(currentFile));
-
-      let yExpr = 'h-th-40';
-      if (pos === 'top') yExpr = '40';
-      if (pos === 'center') yExpr = '(h-th)/2';
-
-      const safeText = escapeDrawtext(text);
-      const filter = `drawtext=fontfile=font.ttf:text='${safeText}':fontsize=${size}:fontcolor=white:x=(w-text_w)/2:y=${yExpr}:box=1:boxcolor=black@0.5:boxborderw=12:enable='between(t,${start},${end})'`;
-
-      lbl.textContent = 'Renderizando legenda (pode demorar)...';
-      const outName = 'legendado.mp4';
-      await ffmpeg.exec(['-i', 'in_cap.mp4', '-vf', filter, '-c:v', 'libx264', '-preset', 'ultrafast', '-c:a', 'copy', outName]);
-      const data = await ffmpeg.readFile(outName);
-      const blob = new Blob([data.buffer], { type: 'video/mp4' });
-      makeResultCard($('#capResults'), blob, 'legendado.mp4', `Legenda de ${fmtTime(start)} a ${fmtTime(end)}`);
-      await ffmpeg.deleteFile('in_cap.mp4'); await ffmpeg.deleteFile(outName);
-      finishProgress(bar, lbl, barWrap, true);
+      lbl.textContent = 'Falhou — veja o registro técnico';
       btn.disabled = false;
-    }catch(err){
-      log('Erro na legenda: ' + err.message);
-      finishProgress($('#capProgressBar'), $('#capProgressLabel'), $('#capProgressWrap'), false);
-      $('#doCapBtn').disabled = false;
     }
   });
 
