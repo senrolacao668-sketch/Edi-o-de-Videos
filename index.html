@@ -493,7 +493,7 @@
     mp4boxfile.start();
     await samplesReady;
 
-    for(const t of ctx.tracks) t.samples.sort((a,b)=>a.cts-b.cts);
+    for(const t of ctx.tracks) t.samples.sort((a,b)=>a.dts-b.dts || a.number-b.number);
     log('Amostras extraídas: ' + collected);
     return ctx;
   }
@@ -503,11 +503,13 @@
     const vScale = videoTrack.timescale;
     const startUnits = Math.round(startSec*vScale);
 
-    let snappedStartUnits = videoTrack.samples[0] ? videoTrack.samples[0].cts : 0;
+    let snappedStartUnits = null;
     for(const s of videoTrack.samples){
-      if (s.cts > startUnits) break;
-      if (s.is_sync) snappedStartUnits = s.cts;
+      if (s.is_sync && s.cts <= startUnits){
+        if (snappedStartUnits === null || s.cts > snappedStartUnits) snappedStartUnits = s.cts;
+      }
     }
+    if (snappedStartUnits === null) snappedStartUnits = videoTrack.samples[0] ? videoTrack.samples[0].cts : 0;
     const snappedStartSec = snappedStartUnits / vScale;
 
     const outTracks = [];
